@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="やること" />
+  <title>やることリスト</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #d1d5db;
+      --accent: #111827;
+      --accent-2: #2563eb;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
+      --radius: 18px;
+      --safe-top: max(16px, env(safe-area-inset-top));
+      --safe-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    button, input { font: inherit; }
+
+    .app {
+      min-height: 100vh;
+      padding: var(--safe-top) 16px calc(88px + var(--safe-bottom));
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .topbar button,
+    .date-card,
+    .task-panel,
+    .reward-summary,
+    .menu-fab,
+    .add-fab,
+    .modal-sheet,
+    .task-row,
+    .stat-card {
+      background: var(--card);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(209, 213, 219, 0.8);
+    }
+
+    .icon-btn {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .date-card {
+      flex: 1;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius);
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: 0.02em;
+    }
+
+    .reward-summary {
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .reward-title {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+
+    .reward-value {
+      font-size: 1.05rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .progress-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      color: #3730a3;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .task-panel {
+      border-radius: 24px;
+      padding: 14px;
+      min-height: 360px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 1.02rem;
+    }
+
+    .count-note {
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .empty {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 24px;
+      line-height: 1.7;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .task-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: start;
+      border-radius: 18px;
+      padding: 12px;
+    }
+
+    .task-main {
+      min-width: 0;
+    }
+
+    .task-title {
+      font-weight: 800;
+      line-height: 1.4;
+      word-break: break-word;
+      margin-bottom: 4px;
+    }
+
+    .task-meta {
+      color: var(--muted);
+      font-size: 0.88rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .completed .task-title {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .checkbox {
+      inline-size: 24px;
+      block-size: 24px;
+      margin-top: 2px;
+      accent-color: var(--success);
+      cursor: pointer;
+    }
+
+    .delete-btn,
+    .secondary-btn,
+    .primary-btn,
+    .ghost-btn {
+      border-radius: 14px;
+      padding: 10px 12px;
+      border: 0;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .delete-btn {
+      background: #fef2f2;
+      color: var(--danger);
+    }
+
+    .secondary-btn {
+      background: #f3f4f6;
+      color: var(--text);
+    }
+
+    .primary-btn {
+      background: var(--accent);
+      color: white;
+    }
+
+    .ghost-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+    }
+
+    .fab-wrap {
+      position: fixed;
+      inset-inline: 0;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 0 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .menu-fab,
+    .add-fab {
+      pointer-events: auto;
+      border: 0;
+      border-radius: 18px;
+      padding: 14px 16px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .add-fab {
+      margin-left: auto;
+      background: var(--accent);
+      color: white;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.35);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: end;
+      justify-content: center;
+      padding: 16px;
+      z-index: 20;
+    }
+
+    .overlay.show { display: flex; }
+
+    .modal-sheet {
+      width: min(560px, 100%);
+      max-height: 88vh;
+      overflow: auto;
+      border-radius: 24px;
+      padding: 18px;
+      animation: rise 0.18s ease-out;
+    }
+
+    @keyframes rise {
+      from { transform: translateY(10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .sheet-head h3 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+
+    .field input {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: white;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .calendar-title {
+      font-weight: 800;
+      font-size: 1rem;
+    }
+
+    .weekday-row,
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+
+    .weekday-row {
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .day-cell {
+      min-height: 52px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: white;
+      padding: 6px;
+      cursor: pointer;
+      position: relative;
+      font-weight: 700;
+    }
+
+    .day-cell.other {
+      color: #9ca3af;
+      background: #f9fafb;
+    }
+
+    .day-cell.today {
+      border-color: var(--accent-2);
+      box-shadow: inset 0 0 0 1px var(--accent-2);
+    }
+
+    .day-cell.selected {
+      background: #111827;
+      color: white;
+      border-color: #111827;
+    }
+
+    .task-dot {
+      position: absolute;
+      inline-size: 7px;
+      block-size: 7px;
+      border-radius: 999px;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--success);
+    }
+
+    .day-cell.selected .task-dot { background: #86efac; }
+
+    .stats-grid {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat-card {
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: #f9fafb;
+      border: 1px solid var(--line);
+      font-weight: 700;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(88px + env(safe-area-inset-bottom));
+      transform: translateX(-50%) translateY(16px);
+      background: #111827;
+      color: white;
+      padding: 14px 16px;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      width: min(calc(100% - 32px), 420px);
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.2s ease;
+      z-index: 30;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="topbar">
+      <button id="openCalendarBtn" class="icon-btn" aria-label="カレンダーを開く">📅 カレンダー</button>
+      <div id="selectedDateLabel" class="date-card">----</div>
+    </section>
+
+    <section class="reward-summary">
+      <div class="reward-title">固定報酬</div>
+      <div class="reward-value">
+        <span>ゲーム時間 30分追加</span>
+        <span id="rewardTotalMini">累計 0分</span>
+      </div>
+    </section>
+
+    <div id="progressPill" class="progress-pill">0 / 0 完了</div>
+
+    <section class="task-panel">
+      <div class="panel-head">
+        <h2>選択中の日付のやること</h2>
+        <div id="countNote" class="count-note">0 / 10</div>
+      </div>
+      <div id="taskContainer"></div>
+    </section>
+  </main>
+
+  <div class="fab-wrap">
+    <button id="openSettingsBtn" class="menu-fab">⚙️ 設定</button>
+    <button id="openAddBtn" class="add-fab">＋ 追加</button>
+  </div>
+
+  <div id="calendarOverlay" class="overlay" aria-hidden="true">
+    <section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="calendarTitle">
+      <div class="sheet-head">
+        <h3 id="calendarTitle">カレンダー</h3>
+        <button class="ghost-btn" data-close="calendar">閉じる</button>
+      </div>
+      <div class="calendar-header">
+        <button id="prevMonthBtn" class="secondary-btn" aria-label="前の月">←</button>
+        <div id="calendarMonthLabel" class="calendar-title"></div>
+        <button id="nextMonthBtn" class="secondary-btn" aria-label="次の月">→</button>
+      </div>
+      <div class="weekday-row">
+        <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+      </div>
+      <div id="calendarGrid" class="calendar-grid"></div>
+    </section>
+  </div>
+
+  <div id="addOverlay" class="overlay" aria-hidden="true">
+    <section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+      <div class="sheet-head">
+        <h3 id="addTitle">やることを追加</h3>
+        <button class="ghost-btn" data-close="add">閉じる</button>
+      </div>
+      <form id="taskForm">
+        <div class="field">
+          <label for="taskTitleInput">やること名</label>
+          <input id="taskTitleInput" name="title" type="text" maxlength="80" placeholder="例：英語の復習" required />
+        </div>
+        <div class="field">
+          <label for="taskTargetDateInput">対象日</label>
+          <input id="taskTargetDateInput" name="targetDate" type="date" required />
+        </div>
+        <div class="field">
+          <label for="taskDeadlineInput">締め切り日</label>
+          <input id="taskDeadlineInput" name="deadline" type="date" required />
+        </div>
+        <div class="actions">
+          <button type="button" class="secondary-btn" data-close="add">キャンセル</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div id="settingsOverlay" class="overlay" aria-hidden="true">
+    <section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="sheet-head">
+        <h3 id="settingsTitle">設定 / 報酬確認</h3>
+        <button class="ghost-btn" data-close="settings">閉じる</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">累計追加ゲーム時間</div>
+          <div id="totalMinutesLabel" class="stat-value">0分</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">報酬獲得回数</div>
+          <div id="rewardCountLabel" class="stat-value">0回</div>
+        </div>
+      </div>
+      <div class="panel-head" style="margin-top: 10px;">
+        <h2>報酬履歴</h2>
+      </div>
+      <div id="rewardHistoryContainer"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = 'rewarded_todo_pwa_v1';
+    const state = loadState();
+    const todayStr = toDateKey(new Date());
+    if (!state.selectedDate) state.selectedDate = todayStr;
+    if (!state.calendarView) state.calendarView = state.selectedDate;
+
+    const el = {
+      selectedDateLabel: document.getElementById('selectedDateLabel'),
+      progressPill: document.getElementById('progressPill'),
+      countNote: document.getElementById('countNote'),
+      taskContainer: document.getElementById('taskContainer'),
+      rewardTotalMini: document.getElementById('rewardTotalMini'),
+      calendarOverlay: document.getElementById('calendarOverlay'),
+      addOverlay: document.getElementById('addOverlay'),
+      settingsOverlay: document.getElementById('settingsOverlay'),
+      calendarMonthLabel: document.getElementById('calendarMonthLabel'),
+      calendarGrid: document.getElementById('calendarGrid'),
+      taskForm: document.getElementById('taskForm'),
+      taskTitleInput: document.getElementById('taskTitleInput'),
+      taskTargetDateInput: document.getElementById('taskTargetDateInput'),
+      taskDeadlineInput: document.getElementById('taskDeadlineInput'),
+      totalMinutesLabel: document.getElementById('totalMinutesLabel'),
+      rewardCountLabel: document.getElementById('rewardCountLabel'),
+      rewardHistoryContainer: document.getElementById('rewardHistoryContainer'),
+      toast: document.getElementById('toast')
+    };
+
+    document.getElementById('openCalendarBtn').addEventListener('click', () => {
+      state.calendarView = state.selectedDate;
+      renderCalendar();
+      openOverlay('calendar');
+    });
+    document.getElementById('openAddBtn').addEventListener('click', () => {
+      el.taskTargetDateInput.value = state.selectedDate;
+      el.taskDeadlineInput.value = state.selectedDate;
+      el.taskTitleInput.value = '';
+      openOverlay('add');
+      setTimeout(() => el.taskTitleInput.focus(), 30);
+    });
+    document.getElementById('openSettingsBtn').addEventListener('click', () => {
+      renderSettings();
+      openOverlay('settings');
+    });
+    document.getElementById('prevMonthBtn').addEventListener('click', () => {
+      const d = fromDateKey(state.calendarView);
+      d.setMonth(d.getMonth() - 1, 1);
+      state.calendarView = toDateKey(d);
+      renderCalendar();
+    });
+    document.getElementById('nextMonthBtn').addEventListener('click', () => {
+      const d = fromDateKey(state.calendarView);
+      d.setMonth(d.getMonth() + 1, 1);
+      state.calendarView = toDateKey(d);
+      renderCalendar();
+    });
+
+    document.querySelectorAll('[data-close]').forEach(btn => {
+      btn.addEventListener('click', () => closeOverlay(btn.dataset.close));
+    });
+
+    [el.calendarOverlay, el.addOverlay, el.settingsOverlay].forEach(overlay => {
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) overlay.classList.remove('show');
+      });
+    });
+
+    el.taskForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const formData = new FormData(el.taskForm);
+      const title = String(formData.get('title') || '').trim();
+      const targetDate = String(formData.get('targetDate') || '');
+      const deadline = String(formData.get('deadline') || '');
+
+      if (!title) return showToast('やること名を入力してください。');
+      if (!targetDate || !deadline) return showToast('対象日と締め切り日を入力してください。');
+
+      const taskCount = getTasksByDate(targetDate).length;
+      if (taskCount >= 10) return showToast('1日のやることは10件までです。');
+
+      state.tasks.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+        title,
+        targetDate,
+        deadline,
+        completed: false,
+        createdAt: new Date().toISOString()
+      });
+      state.selectedDate = targetDate;
+      saveState();
+      closeOverlay('add');
+      render();
+      showToast('やることを追加しました。');
+    });
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return getDefaultState();
+        const parsed = JSON.parse(raw);
+        return {
+          selectedDate: parsed.selectedDate || '',
+          calendarView: parsed.calendarView || '',
+          tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+          rewards: {
+            rewardName: 'ゲーム時間30分追加',
+            minutesPerReward: 30,
+            totalMinutes: Number(parsed.rewards?.totalMinutes || 0),
+            rewardCount: Number(parsed.rewards?.rewardCount || 0),
+            grantedDates: Array.isArray(parsed.rewards?.grantedDates) ? parsed.rewards.grantedDates : [],
+            history: Array.isArray(parsed.rewards?.history) ? parsed.rewards.history : []
+          }
+        };
+      } catch {
+        return getDefaultState();
+      }
+    }
+
+    function getDefaultState() {
+      return {
+        selectedDate: '',
+        calendarView: '',
+        tasks: [],
+        rewards: {
+          rewardName: 'ゲーム時間30分追加',
+          minutesPerReward: 30,
+          totalMinutes: 0,
+          rewardCount: 0,
+          grantedDates: [],
+          history: []
+        }
+      };
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function render() {
+      renderHeader();
+      renderTasks();
+      renderCalendar();
+      renderSettings();
+      saveState();
+    }
+
+    function renderHeader() {
+      el.selectedDateLabel.textContent = formatDateLabel(state.selectedDate);
+      el.rewardTotalMini.textContent = `累計 ${formatMinutes(state.rewards.totalMinutes)}`;
+    }
+
+    function renderTasks() {
+      const tasks = getTasksByDate(state.selectedDate);
+      const completed = tasks.filter(t => t.completed).length;
+      el.progressPill.textContent = `${completed} / ${tasks.length} 完了`;
+      el.countNote.textContent = `${tasks.length} / 10`;
+
+      if (tasks.length === 0) {
+        el.taskContainer.innerHTML = `<div class="empty">この日に登録されたやることはありません。<br>右下の「＋ 追加」から登録できます。</div>`;
+        return;
+      }
+
+      const list = document.createElement('div');
+      list.className = 'task-list';
+
+      const sorted = [...tasks].sort((a, b) => {
+        if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
+        return a.deadline.localeCompare(b.deadline) || a.createdAt.localeCompare(b.createdAt);
+      });
+
+      for (const task of sorted) {
+        const row = document.createElement('div');
+        row.className = `task-row ${task.completed ? 'completed' : ''}`;
+        row.innerHTML = `
+          <input class="checkbox" type="checkbox" aria-label="${escapeHtml(task.title)}を完了にする" ${task.completed ? 'checked' : ''}>
+          <div class="task-main">
+            <div class="task-title">${escapeHtml(task.title)}</div>
+            <div class="task-meta">
+              <span>締め切り: ${escapeHtml(formatDateLabel(task.deadline))}</span>
+            </div>
+          </div>
+          <button class="delete-btn" aria-label="${escapeHtml(task.title)}を削除">削除</button>
+        `;
+        const checkbox = row.querySelector('.checkbox');
+        const deleteBtn = row.querySelector('.delete-btn');
+
+        checkbox.addEventListener('change', () => {
+          task.completed = checkbox.checked;
+          const rewardGranted = maybeGrantReward(task.targetDate);
+          saveState();
+          renderTasks();
+          renderHeader();
+          if (rewardGranted) {
+            showToast('今日のやることをすべて達成しました。\nゲーム時間30分を獲得しました。');
+          }
+        });
+
+        deleteBtn.addEventListener('click', () => {
+          const ok = confirm(`「${task.title}」を削除しますか？`);
+          if (!ok) return;
+          state.tasks = state.tasks.filter(t => t.id !== task.id);
+          saveState();
+          render();
+          showToast('やることを削除しました。');
+        });
+
+        list.appendChild(row);
+      }
+
+      el.taskContainer.innerHTML = '';
+      el.taskContainer.appendChild(list);
+    }
+
+    function renderCalendar() {
+      const base = fromDateKey(state.calendarView || state.selectedDate || todayStr);
+      const year = base.getFullYear();
+      const month = base.getMonth();
+      el.calendarMonthLabel.textContent = `${year}年 ${month + 1}月`;
+
+      const first = new Date(year, month, 1);
+      const start = new Date(first);
+      start.setDate(first.getDate() - first.getDay());
+
+      el.calendarGrid.innerHTML = '';
+      for (let i = 0; i < 42; i++) {
+        const current = new Date(start);
+        current.setDate(start.getDate() + i);
+        const key = toDateKey(current);
+        const btn = document.createElement('button');
+        btn.className = 'day-cell';
+        if (current.getMonth() !== month) btn.classList.add('other');
+        if (key === todayStr) btn.classList.add('today');
+        if (key === state.selectedDate) btn.classList.add('selected');
+        btn.innerHTML = `<span>${current.getDate()}</span>${getTasksByDate(key).length ? '<span class="task-dot"></span>' : ''}`;
+        btn.addEventListener('click', () => {
+          state.selectedDate = key;
+          state.calendarView = key;
+          saveState();
+          render();
+          closeOverlay('calendar');
+        });
+        el.calendarGrid.appendChild(btn);
+      }
+    }
+
+    function renderSettings() {
+      el.totalMinutesLabel.textContent = formatMinutes(state.rewards.totalMinutes);
+      el.rewardCountLabel.textContent = `${state.rewards.rewardCount}回`;
+      const history = [...state.rewards.history].sort((a, b) => b.date.localeCompare(a.date));
+      if (!history.length) {
+        el.rewardHistoryContainer.innerHTML = '<div class="empty" style="min-height: 160px;">まだ報酬履歴はありません。</div>';
+        return;
+      }
+      const wrap = document.createElement('div');
+      wrap.className = 'history-list';
+      history.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `<span>${escapeHtml(formatDateLabel(item.date))}</span><span>+${item.minutes}分</span>`;
+        wrap.appendChild(div);
+      });
+      el.rewardHistoryContainer.innerHTML = '';
+      el.rewardHistoryContainer.appendChild(wrap);
+    }
+
+    function getTasksByDate(dateKey) {
+      return state.tasks.filter(task => task.targetDate === dateKey);
+    }
+
+    function maybeGrantReward(dateKey) {
+      const tasks = getTasksByDate(dateKey);
+      if (!tasks.length) return false;
+      if (state.rewards.grantedDates.includes(dateKey)) return false;
+      if (!tasks.every(task => task.completed)) return false;
+
+      state.rewards.totalMinutes += state.rewards.minutesPerReward;
+      state.rewards.rewardCount += 1;
+      state.rewards.grantedDates.push(dateKey);
+      state.rewards.history.push({ date: dateKey, minutes: state.rewards.minutesPerReward });
+      return true;
+    }
+
+    function openOverlay(name) {
+      if (name === 'calendar') el.calendarOverlay.classList.add('show');
+      if (name === 'add') el.addOverlay.classList.add('show');
+      if (name === 'settings') el.settingsOverlay.classList.add('show');
+    }
+
+    function closeOverlay(name) {
+      if (name === 'calendar') el.calendarOverlay.classList.remove('show');
+      if (name === 'add') el.addOverlay.classList.remove('show');
+      if (name === 'settings') el.settingsOverlay.classList.remove('show');
+    }
+
+    let toastTimer = null;
+    function showToast(message) {
+      el.toast.textContent = message;
+      el.toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2400);
+    }
+
+    function formatDateLabel(dateKey) {
+      const [y, m, d] = dateKey.split('-').map(Number);
+      return `${y}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`;
+    }
+
+    function toDateKey(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function fromDateKey(dateKey) {
+      const [y, m, d] = dateKey.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function formatMinutes(totalMinutes) {
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      if (h === 0) return `${m}分`;
+      return `${h}時間${m}分`;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
